@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+       /* General styling */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #f7f7f9;
+    color: #333;
+}
+
+h1 {
+    font-size: 2em;
+    color: #4CAF50;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Container layout */
+.container {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 20px;
+}
+
+/* Search box */
+.search-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+#query {
+    width: 250px;
+    padding: 10px;
+    font-size: 1em;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+#searchButton {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-left: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#searchButton:hover {
+    background-color: #45a049;
+}
+
+#map {
+    height: 600px;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#results {
+    height: 600px;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Place card styling */
+.place-card {
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    background-color: #fafafa;
+}
+
+.place-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    background-color: #f9f9f9;
+}
+
+.place-card strong {
+    display: block;
+    font-size: 1.2em;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.place-card .place-type {
+    font-size: 0.9em;
+    color: #777;
+    margin-bottom: 8px;
+}
+
+.place-card .place-description {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    font-size: 1em;
+    color: #666;
+    margin: 20px 0;
+}
+
+    </style>
+</head>
+<body>
+    <h1>Find Places of Interest</h1>
+    <div class="search-container">
+        <input type="text" id="query" placeholder="Enter your query" />
+        <button id="searchButton">Search</button>
+    </div>
+    <div id="loading" class="loading">Searching...</div>
+    <div class="container">
+        <div id="results"></div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Initializes map and marker data
+        let map, userMarker, markers = [];
+    
+        // Loads initial user location or default
+        fetch('/api/user-location')
+            .then(response => response.json())
+            .then(data => initializeMap(data.latitude, data.longitude))
+            .catch(() => initializeMap(19.0466, 72.8225));
+    
+        function initializeMap(lat, lon) {
+            map = L.map('map').setView([lat, lon], 13);
+    
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+    
+            const userIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+            userMarker = L.marker([lat, lon], { icon: userIcon })
+                .addTo(map)
+                .bindPopup('Your Location')
+                .openPopup();
+        }
+    
+        document.getElementById('query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchPlaces();
+        });
+    
+        document.getElementById('searchButton').onclick = searchPlaces;
+    
+        function searchPlaces() {
+            const query = document.getElementById('query').value;
+            document.getElementById('loading').style.display = 'block';
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+    
+            fetch(`/api/places?query=${encodeURIComponent(query)}`)
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    displayResults(data);
+                })
+                .catch(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('results').innerHTML = 'Error fetching results.';
+                });
+        }
+    
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+    
+            if (data.user_location) {
+                const { latitude, longitude } = data.user_location;
+                userMarker.setLatLng([latitude, longitude]);
+                map.setView([latitude, longitude], 13);
+            }
+    
+            if (!data.places || data.places.length === 0) {
+                resultsDiv.innerHTML = 'No places found.';
+                return;
+            }
+    
+            const bounds = L.latLngBounds();
+            data.places.forEach((place, index) => {
+                const lat = parseFloat(place.latitude);
+                const lon = parseFloat(place.longitude);
+    
+                // Log coordinates for debugging
+                console.log(`Adding marker for ${place.name} at coordinates: ${lat}, ${lon}`);
+    
+                const placeDiv = document.createElement('div');
+                placeDiv.className = 'place-card';
+                placeDiv.innerHTML = `
+                    <strong>${place.name}</strong>
+                    <div class="place-type">Type: ${place.type}</div>
+                    <div class="place-description">${place.description || 'No description available.'}</div>
+                `;
+    
+                placeDiv.onclick = () => {
+                    console.log(`Clicked on: ${place.name}, Coordinates: ${lat}, ${lon}`);
+                    map.setView([lat, lon], 15);
+                    markers[index].openPopup();
+                };
+                resultsDiv.appendChild(placeDiv);
+    
+                const marker = L.marker([lat, lon])
+                    .addTo(map)
+                    .bindPopup(`<strong>${place.name}</strong><br>${place.type}<br>${place.description || 'No description available.'}`);
+                markers.push(marker);
+                bounds.extend([lat, lon]);
+            });
+    
+            bounds.extend(userMarker.getLatLng());
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    </script>
+    
+</body>
+</html>
