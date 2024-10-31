@@ -1,8 +1,9 @@
-GoLocation: Your AI-Powered Location Finder(currently works for mumbainonly working to fully deploy it and test it for multiple world locations later)
+GoLocation: Your AI-Powered Location Finder(currently works for mumbai only working to fully deploy it and test it for multiple world locations later)
 
 Overview
 
-GoLocation is a web application that leverages the power of natural language processing (NLP) and the Gemini API to help users discover locations around the world. Simply input a location query, and the app will generate a map visualizing the results.
+GeoLocation is a web application that leverages the power of natural language processing (NLP) and the Gemini API to help users discover locations around the world. Simply input a location query, and the app will generate a map visualizing the results.
+future plans include improved quering forest znd zone serching polygon rendering
 
 Features
 
@@ -14,7 +15,7 @@ How to Use
 
 Clone the Repository:
 Bash
-git clone https://github.com/ristonrodrigues723/golocation.git
+git clone https://github.com/ristonrodrigues723/geolocation
 Use code with caution.
 
 Install Dependencies:
