@@ -1,4 +1,4 @@
-GoLocation: Your AI-Powered Location Finder
+GoLocation: Your AI-Powered Location Finder(currently works for mumbainonly working to fully deploy it and test it for multiple world locations later)
 
 Overview
 
